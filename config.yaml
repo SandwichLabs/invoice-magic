@@ -1,0 +1,13 @@
+# Invoice Generator Pro Configuration
+
+# Directory containing Typst templates
+template_dir: ./templates
+
+# Directory for generated output files
+output_dir: ./output
+
+# Default template to use if not specified
+default_template: default
+
+# Default output format (pdf or html)
+default_format: pdf

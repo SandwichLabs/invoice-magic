@@ -1,0 +1,34 @@
+# Binary output
+invgen
+invgen.exe
+
+# Build artifacts
+dist/
+output/
+
+# Test coverage
+coverage.out
+coverage.html
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Task cache
+.task/
+
+# Environment files
+.env
+.env.local
+
+# Claude Code
+.claude/
+
+# Example app (reference only)
+example_go_app/

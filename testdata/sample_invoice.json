@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "invoice_number": "INV-2025-001",
+    "date": "2025-01-10",
+    "due_date": "2025-02-10",
+    "currency": "USD"
+  },
+  "sender": {
+    "name": "ACME Corporation",
+    "address": "123 Business Avenue\nSuite 456\nSan Francisco, CA 94102",
+    "tax_id": "US12-3456789",
+    "email": "billing@acme.example.com",
+    "phone": "+1 (555) 123-4567"
+  },
+  "customer": {
+    "name": "John Doe",
+    "company": "Doe Enterprises",
+    "address": "789 Customer Street\nNew York, NY 10001",
+    "email": "john@doe-enterprises.example.com"
+  },
+  "items": [
+    {
+      "description": "Software Development Consulting",
+      "qty": 40,
+      "unit_price": 150.00,
+      "vat": 0.00
+    },
+    {
+      "description": "Project Management",
+      "qty": 10,
+      "unit_price": 125.00,
+      "vat": 0.00
+    },
+    {
+      "description": "Code Review Services",
+      "qty": 8,
+      "unit_price": 175.00,
+      "vat": 0.00
+    }
+  ],
+  "totals": {
+    "net": 8650.00,
+    "tax": 0.00,
+    "gross": 8650.00
+  },
+  "notes": "Payment due within 30 days. Thank you for your business!"
+}
