@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/sandwich-labs/invoice-generator-pro/internal/template"
 )
@@ -39,18 +38,37 @@ func (r *Renderer) Render(jsonData []byte, templateName, outputPath, format stri
 		}
 	}
 
-	// Escape JSON for shell
-	escapedJSON := escapeJSON(string(jsonData))
+	// Write JSON to a temporary file (Typst reads input from file paths)
+	tmpFile, err := os.CreateTemp("", "invoice-*.json")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	if _, err := tmpFile.Write(jsonData); err != nil {
+		_ = tmpFile.Close()
+		return fmt.Errorf("failed to write temp file: %w", err)
+	}
+	_ = tmpFile.Close()
+
+	// Get absolute path for the temp file
+	absPath, err := filepath.Abs(tmpFile.Name())
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
 
 	// Build typst command
+	// Use --root / to allow absolute paths in json() function
 	args := []string{
 		"compile",
-		"--input", fmt.Sprintf("data=%s", escapedJSON),
+		"--root", "/",
+		"--input", fmt.Sprintf("data=%s", absPath),
 	}
 
 	// Add format-specific options
 	if format == "html" {
-		args = append(args, "--format", "html")
+		// HTML export requires experimental features flag
+		args = append(args, "--features", "html", "--format", "html")
 	}
 
 	// Add input and output paths
@@ -71,14 +89,6 @@ func (r *Renderer) Render(jsonData []byte, templateName, outputPath, format stri
 	}
 
 	return nil
-}
-
-// escapeJSON escapes a JSON string for safe use as a Typst input parameter
-func escapeJSON(s string) string {
-	// Replace backslashes first, then quotes
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "\"", "\\\"")
-	return s
 }
 
 // CheckTypstInstalled verifies that the Typst CLI is available

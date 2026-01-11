@@ -14,9 +14,9 @@ var (
 	outputDir   string
 
 	// Version info set from main
-	appVersion = "dev"
-	appCommit  = "none"
-	appDate    = "unknown"
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 var rootCmd = &cobra.Command{
@@ -46,8 +46,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&templateDir, "template-dir", "", "directory containing templates")
 	rootCmd.PersistentFlags().StringVar(&outputDir, "output-dir", "", "directory for output files")
 
-	viper.BindPFlag("template_dir", rootCmd.PersistentFlags().Lookup("template-dir"))
-	viper.BindPFlag("output_dir", rootCmd.PersistentFlags().Lookup("output-dir"))
+	_ = viper.BindPFlag("template_dir", rootCmd.PersistentFlags().Lookup("template-dir"))
+	_ = viper.BindPFlag("output_dir", rootCmd.PersistentFlags().Lookup("output-dir"))
 }
 
 func initConfig() {
@@ -75,10 +75,10 @@ func initConfig() {
 }
 
 // SetVersion sets the version information for the CLI
-func SetVersion(version, commit, date string) {
-	appVersion = version
-	appCommit = commit
-	appDate = date
+func SetVersion(v, c, d string) {
+	version = v
+	commit = c
+	date = d
 
 	rootCmd.Version = fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
 }

@@ -47,7 +47,7 @@ func init() {
 	renderCmd.Flags().StringVarP(&templateName, "template", "t", "", "template name to use")
 	renderCmd.Flags().StringVarP(&outputFormat, "format", "f", "", "output format: pdf or html")
 
-	renderCmd.MarkFlagRequired("output")
+	_ = renderCmd.MarkFlagRequired("output")
 }
 
 func runRender(cmd *cobra.Command, args []string) error {

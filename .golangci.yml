@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 5m
   modules-download-mode: readonly
@@ -5,24 +7,25 @@ run:
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
     - misspell
     - unconvert
     - unparam
 
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
 linters-settings:
-  gofmt:
-    simplify: true
-  goimports:
-    local-prefixes: github.com/sandwich-labs/invoice-generator-pro
   misspell:
     locale: US
+  goimports:
+    local-prefixes:
+      - github.com/sandwich-labs/invoice-generator-pro
 
 issues:
   exclude-use-default: false

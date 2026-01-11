@@ -10,7 +10,7 @@
   margin: (top: 2cm, bottom: 2cm, left: 2cm, right: 2cm),
 )
 
-#set text(font: "Linux Libertine", size: 11pt)
+#set text(size: 11pt)
 
 // Header
 #align(center)[
@@ -22,34 +22,35 @@
 // Invoice metadata
 #grid(
   columns: (1fr, 1fr),
-  align: (left, right),
   [
     *Invoice Number:* #data.meta.invoice_number \
-    *Date:* #data.meta.date \
-    #if "due_date" in data.meta [*Due Date:* #data.meta.due_date]
+    *Date:* #data.meta.date
+    #if "due_date" in data.meta [
+      \ *Due Date:* #data.meta.due_date
+    ]
   ],
   []
 )
 
 #v(1cm)
 
-// Sender and Customer
+// Sender and Customer info
 #grid(
   columns: (1fr, 1fr),
   column-gutter: 2cm,
   [
     *From:* \
-    #text(weight: "bold")[#data.sender.name] \
-    #data.sender.address \
-    #if "email" in data.sender [#data.sender.email] \
+    *#data.sender.name* \
+    #if "address" in data.sender [#data.sender.address \ ]
+    #if "email" in data.sender [#data.sender.email \ ]
     #if "phone" in data.sender [#data.sender.phone]
   ],
   [
     *To:* \
-    #text(weight: "bold")[#data.customer.name] \
-    #if "company" in data.customer [#data.customer.company \]
-    #if "address" in data.customer [#data.customer.address] \
-    #if "email" in data.customer [#data.customer.email]
+    *#data.customer.name*
+    #if "company" in data.customer [\ #data.customer.company]
+    #if "address" in data.customer [\ #data.customer.address]
+    #if "email" in data.customer [\ #data.customer.email]
   ]
 )
 
@@ -62,22 +63,24 @@
   stroke: 0.5pt,
   inset: 8pt,
 
-  // Header
-  [*#*], [*Description*], [*Qty*], [*Unit Price*], [*Amount*],
+  // Header row
+  table.header(
+    [*No.*], [*Description*], [*Qty*], [*Unit Price*], [*Amount*],
+  ),
 
-  // Items
+  // Item rows
   ..data.items.enumerate().map(((i, item)) => (
-    [#(i + 1)],
-    [#item.description],
-    [#item.qty],
-    [#item.unit_price],
-    [#calc.round(item.qty * item.unit_price, digits: 2)],
+    str(i + 1),
+    item.description,
+    str(item.qty),
+    str(item.unit_price),
+    str(calc.round(item.qty * item.unit_price, digits: 2)),
   )).flatten()
 )
 
 #v(0.5cm)
 
-// Totals
+// Totals section
 #align(right)[
   #table(
     columns: (auto, auto),
@@ -85,16 +88,16 @@
     stroke: none,
     inset: 4pt,
 
-    [*Subtotal:*], [#data.totals.net],
-    [*Tax:*], [#data.totals.tax],
+    [*Subtotal:*], str(data.totals.net),
+    [*Tax:*], str(data.totals.tax),
     table.hline(stroke: 1pt),
-    [*Total:*], [*#data.totals.gross*],
+    [*Total:*], [*#str(data.totals.gross)*],
   )
 ]
 
 #v(1cm)
 
-// Notes
+// Notes section
 #if "notes" in data [
   #line(length: 100%, stroke: 0.5pt)
   #v(0.3cm)

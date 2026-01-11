@@ -12,7 +12,7 @@ func TestManager_List(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create test template files
 	templates := []string{"default.typ", "modern.typ", "minimal.typ"}
@@ -44,7 +44,7 @@ func TestManager_List_EmptyDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	mgr := NewManager(tmpDir)
 	list, err := mgr.List()
@@ -74,7 +74,7 @@ func TestManager_Exists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a test template
 	if err := os.WriteFile(filepath.Join(tmpDir, "default.typ"), []byte("// test"), 0644); err != nil {
@@ -97,7 +97,7 @@ func TestManager_GetPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a test template
 	expectedPath := filepath.Join(tmpDir, "default.typ")

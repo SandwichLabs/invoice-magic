@@ -57,12 +57,12 @@ func runTemplateList(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tPATH")
-	fmt.Fprintln(w, "----\t----")
+	_, _ = fmt.Fprintln(w, "NAME\tPATH")
+	_, _ = fmt.Fprintln(w, "----\t----")
 	for _, t := range templates {
-		fmt.Fprintf(w, "%s\t%s\n", t.Name, t.Path)
+		_, _ = fmt.Fprintf(w, "%s\t%s\n", t.Name, t.Path)
 	}
-	w.Flush()
+	_ = w.Flush()
 
 	return nil
 }
