@@ -58,6 +58,7 @@ func TokenHasScope(meta *TokenMetadata, scope string) bool {
 }
 
 // TokenHasAllScopes checks if a token has all the required scopes.
+// Understands that read/write scope (ScopeSpreadsheets) satisfies read-only (ScopeSheetsReadonly).
 func TokenHasAllScopes(meta *TokenMetadata, required []string) bool {
 	if meta == nil {
 		return false
@@ -66,6 +67,11 @@ func TokenHasAllScopes(meta *TokenMetadata, required []string) bool {
 	grantedSet := make(map[string]bool)
 	for _, s := range meta.GrantedScopes {
 		grantedSet[s] = true
+	}
+
+	// Read/write scope implies read-only
+	if grantedSet[ScopeSpreadsheets] {
+		grantedSet[ScopeSheetsReadonly] = true
 	}
 
 	for _, req := range required {
@@ -77,6 +83,7 @@ func TokenHasAllScopes(meta *TokenMetadata, required []string) bool {
 }
 
 // MissingScopes returns which scopes from required are not in the token.
+// Understands that read/write scope (ScopeSpreadsheets) satisfies read-only (ScopeSheetsReadonly).
 func MissingScopes(meta *TokenMetadata, required []string) []string {
 	if meta == nil {
 		return required
@@ -85,6 +92,11 @@ func MissingScopes(meta *TokenMetadata, required []string) []string {
 	grantedSet := make(map[string]bool)
 	for _, s := range meta.GrantedScopes {
 		grantedSet[s] = true
+	}
+
+	// Read/write scope implies read-only
+	if grantedSet[ScopeSpreadsheets] {
+		grantedSet[ScopeSheetsReadonly] = true
 	}
 
 	var missing []string

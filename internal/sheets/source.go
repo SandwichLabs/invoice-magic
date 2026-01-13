@@ -317,3 +317,87 @@ func isEmptyRow(row []interface{}) bool {
 	}
 	return true
 }
+
+// ProvisionHeaders writes the configured field mapping headers to the sheet's header row.
+// This sets up the sheet structure based on the field mappings in config.
+// Requires spreadsheets (read/write) scope.
+func (s *Source) ProvisionHeaders(ctx context.Context) error {
+	headers := s.buildHeaderRow()
+	if len(headers) == 0 {
+		return fmt.Errorf("no field mappings configured")
+	}
+
+	// Verify the sheet exists
+	sheet, err := s.client.FindSheetByName(ctx, s.config.SpreadsheetID, s.config.SheetName)
+	if err != nil {
+		return fmt.Errorf("check sheet exists: %w", err)
+	}
+	if sheet == nil {
+		return fmt.Errorf("sheet %q not found in spreadsheet. Create the sheet first or check the sheet_name in config.yaml", s.config.SheetName)
+	}
+
+	// Build range for header row (e.g., "'Invoices'!A1:T1")
+	// Sheet names must be quoted in A1 notation
+	endCol := columnLetter(len(headers) - 1)
+	rangeA1 := fmt.Sprintf("'%s'!A%d:%s%d",
+		s.config.SheetName,
+		s.config.HeaderRow,
+		endCol,
+		s.config.HeaderRow,
+	)
+
+	values := [][]interface{}{headers}
+	return s.client.UpdateRange(ctx, s.config.SpreadsheetID, rangeA1, values)
+}
+
+// buildHeaderRow creates the header row values from field mappings.
+func (s *Source) buildHeaderRow() []interface{} {
+	f := s.config.Fields
+
+	// Collect all non-empty field mappings in order
+	fieldOrder := []string{
+		f.InvoiceNumber,
+		f.Date,
+		f.DueDate,
+		f.Currency,
+		f.SenderName,
+		f.SenderCompany,
+		f.SenderAddress,
+		f.SenderTaxID,
+		f.SenderEmail,
+		f.SenderPhone,
+		f.CustomerName,
+		f.CustomerCompany,
+		f.CustomerAddress,
+		f.CustomerTaxID,
+		f.CustomerEmail,
+		f.CustomerPhone,
+		f.ItemDescription,
+		f.ItemQty,
+		f.ItemUnitPrice,
+		f.ItemVAT,
+		f.TotalNet,
+		f.TotalTax,
+		f.TotalGross,
+		f.Notes,
+	}
+
+	var headers []interface{}
+	for _, h := range fieldOrder {
+		if h != "" {
+			headers = append(headers, h)
+		}
+	}
+
+	return headers
+}
+
+// GetHeaderMapping returns the configured field names for display.
+func (s *Source) GetHeaderMapping() []string {
+	headers := s.buildHeaderRow()
+	result := make([]string, len(headers))
+	for i, h := range headers {
+		result[i] = h.(string)
+	}
+	return result
+}

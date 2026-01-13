@@ -3,6 +3,7 @@ module github.com/sandwich-labs/invoice-generator-pro
 go 1.24.0
 
 require (
+	github.com/go-chi/chi/v5 v5.2.3
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
 	golang.org/x/oauth2 v0.34.0

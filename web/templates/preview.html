@@ -1,0 +1,80 @@
+{{define "content"}}
+<div class="container preview-container">
+    <div class="preview-sidebar">
+        <a href="/invoices" class="back-link">&larr; Back to Invoices</a>
+
+        <div class="invoice-info">
+            <h2>Invoice {{.Invoice.InvoiceNumber}}</h2>
+            <dl>
+                <dt>Customer</dt>
+                <dd>{{.Invoice.CustomerName}}</dd>
+                <dt>Date</dt>
+                <dd>{{.Invoice.Date}}</dd>
+                <dt>Total</dt>
+                <dd>{{formatMoney .Invoice.TotalGross .Invoice.Currency}}</dd>
+                <dt>Status</dt>
+                <dd>
+                    {{if .Invoice.IsValid}}
+                    <span class="status-valid">Valid</span>
+                    {{else}}
+                    <span class="status-invalid">Invalid: {{.Invoice.ValidationErr}}</span>
+                    {{end}}
+                </dd>
+            </dl>
+        </div>
+
+        {{if .Error}}
+        <div class="error-message">
+            <strong>Error:</strong> {{.Error}}
+        </div>
+        {{else}}
+        <div class="template-selector">
+            <label for="template-select">Template:</label>
+            <select id="template-select"
+                    name="template"
+                    hx-post="/invoices/{{.RowNumber}}/render"
+                    hx-target="#preview-content"
+                    hx-indicator="#render-spinner">
+                {{range .Templates}}
+                <option value="{{.Name}}" {{if eq .Name $.SelectedTmpl}}selected{{end}}>
+                    {{.Name}}
+                </option>
+                {{end}}
+            </select>
+            <span id="render-spinner" class="htmx-indicator">Rendering...</span>
+        </div>
+
+        <div class="actions">
+            <a href="/invoices/{{.RowNumber}}/download?template={{.SelectedTmpl}}"
+               class="btn btn-primary"
+               id="download-btn">
+                Download PDF
+            </a>
+        </div>
+        {{end}}
+    </div>
+
+    <div class="preview-main">
+        <div id="preview-content"
+             hx-post="/invoices/{{.RowNumber}}/render"
+             hx-trigger="load"
+             hx-vals='{"template": "{{.SelectedTmpl}}"}'
+             hx-indicator="#render-spinner">
+            <div class="loading-placeholder">
+                <p>Loading preview...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update download link when template changes
+document.getElementById('template-select')?.addEventListener('change', function() {
+    const downloadBtn = document.getElementById('download-btn');
+    if (downloadBtn) {
+        const template = this.value;
+        downloadBtn.href = '/invoices/{{.RowNumber}}/download?template=' + encodeURIComponent(template);
+    }
+});
+</script>
+{{end}}

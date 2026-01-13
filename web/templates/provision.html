@@ -1,0 +1,66 @@
+{{define "content"}}
+<div class="container">
+    <div class="page-header">
+        <h1>Provision Headers</h1>
+    </div>
+
+    <p class="description">
+        Push the configured field mappings as column headers to the Google Sheet.
+        This sets up the sheet structure based on your config.yaml field mappings.
+    </p>
+
+    {{if .Error}}
+    <div class="error-message">
+        <strong>Error:</strong> {{.Error}}
+    </div>
+    {{end}}
+
+    <div class="provision-section">
+        <h2>Field Mappings</h2>
+        <p class="subtitle">These headers will be written to the sheet's header row:</p>
+
+        <table class="data-table mapping-table">
+            <thead>
+                <tr>
+                    <th>Column</th>
+                    <th>Header Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Headers}}
+                <tr>
+                    <td class="column-letter">{{.Column}}</td>
+                    <td>{{.Name}}</td>
+                </tr>
+                {{else}}
+                <tr>
+                    <td colspan="2" class="no-data">No field mappings configured</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+
+        <div class="actions provision-actions">
+            {{if .WriteEnabled}}
+            <button hx-post="/provision"
+                    hx-target="#provision-result"
+                    hx-indicator="#provision-spinner"
+                    class="btn btn-primary">
+                <span id="provision-spinner" class="htmx-indicator">Provisioning...</span>
+                <span class="btn-text">Provision Headers to Sheet</span>
+            </button>
+            {{else}}
+            <div class="warning-message">
+                <strong>Write mode not enabled.</strong><br>
+                To provision headers from the web UI, start the server with the <code>--write</code> flag:<br>
+                <code>invgen serve --write</code><br><br>
+                Or use the CLI command:<br>
+                <code>invgen provision</code>
+            </div>
+            {{end}}
+        </div>
+
+        <div id="provision-result"></div>
+    </div>
+</div>
+{{end}}

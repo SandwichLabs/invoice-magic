@@ -1,0 +1,61 @@
+{{define "content"}}
+<div class="container">
+    <div class="page-header">
+        <h1>Invoices</h1>
+        <button hx-post="/invoices/refresh"
+                hx-target="#invoice-table tbody"
+                hx-indicator="#refresh-spinner"
+                class="btn btn-secondary">
+            <span id="refresh-spinner" class="htmx-indicator">Loading...</span>
+            <span class="btn-text">Refresh from Sheet</span>
+        </button>
+    </div>
+
+    {{if .SheetInfo}}
+    <p class="sheet-info">{{.SheetInfo}}</p>
+    {{end}}
+
+    {{if .Error}}
+    <div class="error-message">
+        <strong>Error:</strong> {{.Error}}
+    </div>
+    {{else}}
+    <table id="invoice-table" class="data-table">
+        <thead>
+            <tr>
+                <th>Row</th>
+                <th>Invoice #</th>
+                <th>Customer</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Invoices}}
+            <tr class="{{if .IsValid}}valid{{else}}invalid{{end}}"
+                onclick="window.location='/invoices/{{.RowNumber}}'"
+                style="cursor: pointer;">
+                <td>{{.RowNumber}}</td>
+                <td>{{.InvoiceNumber}}</td>
+                <td>{{.CustomerName}}</td>
+                <td>{{.Date}}</td>
+                <td>{{formatMoney .TotalGross .Currency}}</td>
+                <td>
+                    {{if .IsValid}}
+                    <span class="status-valid">Valid</span>
+                    {{else}}
+                    <span class="status-invalid" title="{{.ValidationErr}}">Invalid</span>
+                    {{end}}
+                </td>
+            </tr>
+            {{else}}
+            <tr>
+                <td colspan="6" class="no-data">No invoices found in the sheet</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+</div>
+{{end}}

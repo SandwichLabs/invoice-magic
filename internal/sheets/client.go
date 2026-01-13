@@ -146,6 +146,55 @@ func (c *Client) FindSheetByName(ctx context.Context, spreadsheetID, sheetName s
 	return nil, nil
 }
 
+// UpdateRange writes data to a specific range (e.g., "Sheet1!A1:D1").
+// Requires spreadsheets (read/write) scope.
+func (c *Client) UpdateRange(ctx context.Context, spreadsheetID, rangeA1 string, values [][]interface{}) error {
+	if err := c.wait(ctx); err != nil {
+		return err
+	}
+
+	valueRange := &sheets.ValueRange{
+		Values: values,
+	}
+
+	_, err := c.service.Spreadsheets.Values.Update(spreadsheetID, rangeA1, valueRange).
+		ValueInputOption("RAW").
+		Context(ctx).
+		Do()
+	if err != nil {
+		return fmt.Errorf("update range: %w", err)
+	}
+
+	return nil
+}
+
+// AppendRows appends rows to the end of a sheet.
+// Requires spreadsheets (read/write) scope.
+func (c *Client) AppendRows(ctx context.Context, spreadsheetID, sheetName string, values [][]interface{}) error {
+	if err := ValidateSheetName(sheetName); err != nil {
+		return err
+	}
+
+	if err := c.wait(ctx); err != nil {
+		return err
+	}
+
+	valueRange := &sheets.ValueRange{
+		Values: values,
+	}
+
+	_, err := c.service.Spreadsheets.Values.Append(spreadsheetID, sheetName, valueRange).
+		ValueInputOption("RAW").
+		InsertDataOption("INSERT_ROWS").
+		Context(ctx).
+		Do()
+	if err != nil {
+		return fmt.Errorf("append rows: %w", err)
+	}
+
+	return nil
+}
+
 // wait blocks until rate limit allows the request.
 func (c *Client) wait(ctx context.Context) error {
 	return c.limiter.Wait(ctx)
