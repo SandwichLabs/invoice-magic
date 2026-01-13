@@ -1,6 +1,7 @@
 # Binary output
 invgen
 invgen.exe
+tmpdata/
 
 # Build artifacts
 dist/

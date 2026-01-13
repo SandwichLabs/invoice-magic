@@ -13,6 +13,7 @@ type Invoice struct {
 	Items    []LineItem `json:"items"`
 	Totals   Totals     `json:"totals"`
 	Notes    string     `json:"notes,omitempty"`
+	Service  Service    `json:"service,omitempty"`
 }
 
 // Meta contains invoice metadata
@@ -25,12 +26,14 @@ type Meta struct {
 
 // Party represents a sender or customer
 type Party struct {
-	Name    string `json:"name"`
-	Company string `json:"company,omitempty"`
-	Address string `json:"address,omitempty"`
-	TaxID   string `json:"tax_id,omitempty"`
-	Email   string `json:"email,omitempty"`
-	Phone   string `json:"phone,omitempty"`
+	Name      string `json:"name"`
+	Company   string `json:"company,omitempty"`
+	Address   string `json:"address,omitempty"`
+	TaxID     string `json:"tax_id,omitempty"`
+	Email     string `json:"email,omitempty"`
+	Phone     string `json:"phone,omitempty"`
+	PhoneCell string `json:"phone_cell,omitempty"`
+	PhoneHome string `json:"phone_home,omitempty"`
 }
 
 // LineItem represents a single invoice line item
@@ -53,9 +56,22 @@ func (li LineItem) AmountWithVAT() float64 {
 
 // Totals contains the invoice totals
 type Totals struct {
-	Net   float64 `json:"net"`
-	Tax   float64 `json:"tax"`
-	Gross float64 `json:"gross"`
+	Net     float64 `json:"net"`
+	Tax     float64 `json:"tax"`
+	Gross   float64 `json:"gross"`
+	Deposit float64 `json:"deposit,omitempty"`
+	Balance float64 `json:"balance,omitempty"`
+}
+
+// Service contains service/appliance-specific information
+type Service struct {
+	Technician   string `json:"technician,omitempty"`
+	Type         string `json:"type,omitempty"`
+	Make         string `json:"make,omitempty"`
+	Model        string `json:"model,omitempty"`
+	Serial       string `json:"serial,omitempty"`
+	WarrantyType string `json:"warranty_type,omitempty"`
+	ServiceType  string `json:"service_type,omitempty"`
 }
 
 // ParseInvoice parses JSON data into an Invoice struct

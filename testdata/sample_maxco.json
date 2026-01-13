@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "invoice_number": "SR-2025-0142",
+    "date": "2025-01-13",
+    "currency": "USD"
+  },
+  "sender": {
+    "name": "Chicagoland Appliance Repair Inc.",
+    "address": "2502 N Clark Street Suite 241 Chicago IL 60614",
+    "phone": "(773) 572-5600",
+    "email": "service@chicagolandappliance.com"
+  },
+  "customer": {
+    "name": "Jane Smith",
+    "address": "1234 Oak Street, Chicago, IL 60657",
+    "phone_cell": "(312) 555-1234",
+    "phone_home": "(773) 555-5678",
+    "email": "jane.smith@email.com"
+  },
+  "service": {
+    "technician": "Mike Johnson",
+    "type": "Refrigerator",
+    "make": "Samsung",
+    "model": "RF28R7351SR",
+    "serial": "0A2B3C4D5E6F",
+    "warranty_type": "parts_labor",
+    "service_type": "repair"
+  },
+  "items": [
+    {
+      "description": "Service Call - Diagnostic",
+      "qty": 1,
+      "unit_price": 89.00,
+      "vat": 0
+    },
+    {
+      "description": "Compressor Relay Replacement",
+      "qty": 1,
+      "unit_price": 145.00,
+      "vat": 0
+    },
+    {
+      "description": "Labor - 1.5 hours",
+      "qty": 1.5,
+      "unit_price": 85.00,
+      "vat": 0
+    }
+  ],
+  "totals": {
+    "net": 361.50,
+    "tax": 0,
+    "gross": 361.50,
+    "deposit": 100.00,
+    "balance": 261.50
+  },
+  "notes": "Customer reported intermittent cooling issues. Diagnosed faulty compressor relay. Part replaced and tested. Unit cooling properly."
+}
