@@ -10,22 +10,22 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/sandwich-labs/invoice-generator-pro/internal/render"
+	"github.com/sandwich-labs/invoice-generator-pro/internal/repository"
 	"github.com/sandwich-labs/invoice-generator-pro/internal/sheets"
 	"github.com/sandwich-labs/invoice-generator-pro/internal/template"
 )
 
-// ServerConfig holds configuration for the web server
+// ServerConfig holds configuration for the web server.
 type ServerConfig struct {
 	Port         int
-	SheetsClient *sheets.Client
-	SourceConfig sheets.SourceConfig
+	Repo         repository.Repository // primary storage abstraction
+	SheetsSource *sheets.Source        // optional; non-nil only for the sheets backend; used by provision routes
 	TemplateMgr  *template.Manager
 	TemplateDir  string // HTML templates directory
 	StaticDir    string // Static files directory
-	WriteEnabled bool   // Whether write operations are enabled
 }
 
-// StartServer initializes and starts the HTTP server
+// StartServer initializes and starts the HTTP server.
 func StartServer(config ServerConfig) error {
 	r := chi.NewRouter()
 
@@ -34,16 +34,15 @@ func StartServer(config ServerConfig) error {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// Create handler with dependencies
-	sheetsSource := sheets.NewSource(config.SheetsClient, config.SourceConfig)
+	// Create renderer
 	renderer := render.New(config.TemplateMgr)
 
 	handler, err := NewWebHandler(WebHandlerConfig{
-		SheetsSource: sheetsSource,
+		Repo:         config.Repo,
+		SheetsSource: config.SheetsSource,
 		TemplateMgr:  config.TemplateMgr,
 		Renderer:     renderer,
 		TemplateDir:  config.TemplateDir,
-		WriteEnabled: config.WriteEnabled,
 	})
 	if err != nil {
 		return fmt.Errorf("create web handler: %w", err)

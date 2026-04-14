@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/sandwich-labs/invoice-generator-pro/internal/auth"
+	"github.com/sandwich-labs/invoice-generator-pro/internal/repository/sheetsrepo"
 	"github.com/sandwich-labs/invoice-generator-pro/internal/sheets"
 	"github.com/sandwich-labs/invoice-generator-pro/internal/template"
 	"github.com/sandwich-labs/invoice-generator-pro/internal/web"
@@ -98,6 +99,9 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("create sheets client: %w", err)
 	}
 
+	// Create repository
+	repo := sheetsrepo.New(sheetsClient, sourceConfig, writeEnable)
+
 	// Create template manager
 	tmplDir := viper.GetString("template_dir")
 	tmplMgr := template.NewManager(tmplDir)
@@ -105,12 +109,11 @@ func runServe(cmd *cobra.Command, args []string) error {
 	// Start server
 	config := web.ServerConfig{
 		Port:         servePort,
-		SheetsClient: sheetsClient,
-		SourceConfig: sourceConfig,
+		Repo:         repo,
+		SheetsSource: repo.Source(), // provision operations
 		TemplateMgr:  tmplMgr,
 		TemplateDir:  "./web/templates",
 		StaticDir:    "./web/static",
-		WriteEnabled: writeEnable,
 	}
 
 	fmt.Printf("Connecting to Google Sheets...\n")

@@ -3,6 +3,7 @@
     <div class="preview-sidebar">
         <a href="/invoices" class="back-link">&larr; Back to Invoices</a>
 
+        {{if .Invoice}}
         <div class="invoice-info">
             <h2>Invoice {{.Invoice.InvoiceNumber}}</h2>
             <dl>
@@ -22,6 +23,7 @@
                 </dd>
             </dl>
         </div>
+        {{end}}
 
         {{if .Error}}
         <div class="error-message">

@@ -11,30 +11,31 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/sandwich-labs/invoice-generator-pro/internal/render"
+	"github.com/sandwich-labs/invoice-generator-pro/internal/repository"
 	"github.com/sandwich-labs/invoice-generator-pro/internal/sheets"
 	tmpl "github.com/sandwich-labs/invoice-generator-pro/internal/template"
 )
 
-// WebHandlerConfig holds dependencies for creating a WebHandler
+// WebHandlerConfig holds dependencies for creating a WebHandler.
 type WebHandlerConfig struct {
-	SheetsSource *sheets.Source
+	Repo         repository.Repository
+	SheetsSource *sheets.Source // optional; nil disables provision UI
 	TemplateMgr  *tmpl.Manager
 	Renderer     *render.Renderer
 	TemplateDir  string // HTML templates directory
-	WriteEnabled bool   // Whether write operations are enabled
 }
 
-// WebHandler handles web requests with injected dependencies
+// WebHandler handles web requests with injected dependencies.
 type WebHandler struct {
-	sheetsSource  *sheets.Source
+	repo          repository.Repository
+	sheetsSource  *sheets.Source // optional; nil when not using the sheets backend
 	templateMgr   *tmpl.Manager
 	renderer      *render.Renderer
 	pageTemplates map[string]*template.Template
 	tempDir       string
-	writeEnabled  bool
 }
 
-// InvoiceRowView represents a row for display
+// InvoiceRowView represents a row for display.
 type InvoiceRowView struct {
 	RowNumber     int
 	InvoiceNumber string
@@ -46,15 +47,16 @@ type InvoiceRowView struct {
 	ValidationErr string
 }
 
-// InvoiceListData for the invoices page
+// InvoiceListData for the invoices page.
 type InvoiceListData struct {
 	Title     string
 	Invoices  []InvoiceRowView
 	Error     string
 	SheetInfo string
+	Writable  bool
 }
 
-// PreviewData for the preview page
+// PreviewData for the preview page.
 type PreviewData struct {
 	Title        string
 	RowNumber    int
@@ -63,9 +65,10 @@ type PreviewData struct {
 	SelectedTmpl string
 	PreviewHTML  template.HTML
 	Error        string
+	Writable     bool
 }
 
-// NewWebHandler creates a new WebHandler with parsed templates
+// NewWebHandler creates a new WebHandler with parsed templates.
 func NewWebHandler(config WebHandlerConfig) (*WebHandler, error) {
 	templateDir := config.TemplateDir
 	if templateDir == "" {
@@ -79,12 +82,12 @@ func NewWebHandler(config WebHandlerConfig) (*WebHandler, error) {
 	}
 
 	h := &WebHandler{
+		repo:          config.Repo,
 		sheetsSource:  config.SheetsSource,
 		templateMgr:   config.TemplateMgr,
 		renderer:      config.Renderer,
 		pageTemplates: make(map[string]*template.Template),
 		tempDir:       tempDir,
-		writeEnabled:  config.WriteEnabled,
 	}
 
 	// Parse templates
@@ -139,12 +142,12 @@ func NewWebHandler(config WebHandlerConfig) (*WebHandler, error) {
 	return h, nil
 }
 
-// Cleanup removes temporary files
+// Cleanup removes temporary files.
 func (h *WebHandler) Cleanup() {
 	os.RemoveAll(h.tempDir)
 }
 
-// render renders a template with the given data
+// render renders a template with the given data.
 func (h *WebHandler) render(w http.ResponseWriter, templateName string, data interface{}) {
 	t, ok := h.pageTemplates[templateName]
 	if !ok {
@@ -159,17 +162,48 @@ func (h *WebHandler) render(w http.ResponseWriter, templateName string, data int
 	}
 }
 
-// IndexRedirect redirects to the invoices page
+// recordByRow looks up a record by its transitional row number.
+// Used by preview/render/download handlers until routes are rekeyed to {id} in issue #5.
+func (h *WebHandler) recordByRow(r *http.Request, rowNum int) (*repository.Record, error) {
+	records, err := h.repo.List(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	for i := range records {
+		if records[i].RowNumber == rowNum {
+			return &records[i], nil
+		}
+	}
+	return nil, fmt.Errorf("no invoice at row %d", rowNum)
+}
+
+// invoiceRowView converts a Record to an InvoiceRowView.
+func invoiceRowView(rec repository.Record) InvoiceRowView {
+	view := InvoiceRowView{
+		RowNumber:     rec.RowNumber,
+		InvoiceNumber: rec.Invoice.Meta.InvoiceNumber,
+		CustomerName:  rec.Invoice.Customer.Name,
+		Date:          rec.Invoice.Meta.Date,
+		TotalGross:    rec.Invoice.Totals.Gross,
+		Currency:      rec.Invoice.Meta.Currency,
+	}
+	if err := rec.Invoice.Validate(); err != nil {
+		view.IsValid = false
+		view.ValidationErr = err.Error()
+	} else {
+		view.IsValid = true
+	}
+	return view
+}
+
+// IndexRedirect redirects to the invoices page.
 func (h *WebHandler) IndexRedirect(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/invoices", http.StatusSeeOther)
 }
 
-// InvoicesPage displays the list of invoices from the sheet
+// InvoicesPage displays the list of invoices.
 func (h *WebHandler) InvoicesPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	// Fetch all invoices from configured sheet
-	invoices, err := h.sheetsSource.FetchInvoices(ctx)
+	records, err := h.repo.List(r.Context())
 	if err != nil {
 		data := InvoiceListData{
 			Title: "Invoices",
@@ -179,56 +213,37 @@ func (h *WebHandler) InvoicesPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert to view models with validation status
-	var views []InvoiceRowView
-	for _, inv := range invoices {
-		view := InvoiceRowView{
-			RowNumber:     inv.RowNumber,
-			InvoiceNumber: inv.Invoice.Meta.InvoiceNumber,
-			CustomerName:  inv.Invoice.Customer.Name,
-			Date:          inv.Invoice.Meta.Date,
-			TotalGross:    inv.Invoice.Totals.Gross,
-			Currency:      inv.Invoice.Meta.Currency,
-		}
-		if err := inv.Invoice.Validate(); err != nil {
-			view.IsValid = false
-			view.ValidationErr = err.Error()
-		} else {
-			view.IsValid = true
-		}
-		views = append(views, view)
+	views := make([]InvoiceRowView, 0, len(records))
+	for _, rec := range records {
+		views = append(views, invoiceRowView(rec))
 	}
 
 	data := InvoiceListData{
 		Title:    "Invoices",
 		Invoices: views,
+		Writable: h.repo.Writable(),
 	}
-
 	h.render(w, "invoices.html", data)
 }
 
-// RefreshInvoices is an HTMX handler that returns just the invoice list
+// RefreshInvoices is an HTMX handler that returns just the invoice list rows.
 func (h *WebHandler) RefreshInvoices(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	// Fetch all invoices from configured sheet
-	invoices, err := h.sheetsSource.FetchInvoices(ctx)
+	records, err := h.repo.List(r.Context())
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `<tr><td colspan="6" class="error">Failed to fetch invoices: %v</td></tr>`, err)
 		return
 	}
 
-	// Convert and render table rows
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	for _, inv := range invoices {
-		isValid := inv.Invoice.Validate() == nil
+	for _, rec := range records {
+		isValid := rec.Invoice.Validate() == nil
 		validClass := "valid"
 		if !isValid {
 			validClass = "invalid"
 		}
 
-		currency := inv.Invoice.Meta.Currency
+		currency := rec.Invoice.Meta.Currency
 		if currency == "" {
 			currency = "USD"
 		}
@@ -242,13 +257,13 @@ func (h *WebHandler) RefreshInvoices(w http.ResponseWriter, r *http.Request) {
 			<td>%s</td>
 		</tr>`,
 			validClass,
-			inv.RowNumber,
-			inv.RowNumber,
-			template.HTMLEscapeString(inv.Invoice.Meta.InvoiceNumber),
-			template.HTMLEscapeString(inv.Invoice.Customer.Name),
-			template.HTMLEscapeString(inv.Invoice.Meta.Date),
+			rec.RowNumber,
+			rec.RowNumber,
+			template.HTMLEscapeString(rec.Invoice.Meta.InvoiceNumber),
+			template.HTMLEscapeString(rec.Invoice.Customer.Name),
+			template.HTMLEscapeString(rec.Invoice.Meta.Date),
 			currency,
-			inv.Invoice.Totals.Gross,
+			rec.Invoice.Totals.Gross,
 			func() string {
 				if isValid {
 					return "Valid"
@@ -259,19 +274,15 @@ func (h *WebHandler) RefreshInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// InvoicePreview displays the preview page for a single invoice
+// InvoicePreview displays the preview page for a single invoice.
 func (h *WebHandler) InvoicePreview(w http.ResponseWriter, r *http.Request) {
-	rowStr := chi.URLParam(r, "row")
-	rowNum, err := strconv.Atoi(rowStr)
+	rowNum, err := strconv.Atoi(chi.URLParam(r, "row"))
 	if err != nil {
 		http.Error(w, "Invalid row number", http.StatusBadRequest)
 		return
 	}
 
-	ctx := r.Context()
-
-	// Fetch the invoice
-	invoiceRow, err := h.sheetsSource.FetchInvoice(ctx, rowNum)
+	rec, err := h.recordByRow(r, rowNum)
 	if err != nil {
 		data := PreviewData{
 			Title:     "Invoice Preview",
@@ -282,46 +293,28 @@ func (h *WebHandler) InvoicePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get available templates
 	templates, _ := h.templateMgr.List()
 
-	// Create invoice view
-	invoiceView := &InvoiceRowView{
-		RowNumber:     invoiceRow.RowNumber,
-		InvoiceNumber: invoiceRow.Invoice.Meta.InvoiceNumber,
-		CustomerName:  invoiceRow.Invoice.Customer.Name,
-		Date:          invoiceRow.Invoice.Meta.Date,
-		TotalGross:    invoiceRow.Invoice.Totals.Gross,
-		Currency:      invoiceRow.Invoice.Meta.Currency,
-	}
-	if err := invoiceRow.Invoice.Validate(); err != nil {
-		invoiceView.IsValid = false
-		invoiceView.ValidationErr = err.Error()
-	} else {
-		invoiceView.IsValid = true
-	}
-
-	// Default template
 	selectedTmpl := "default"
 	if len(templates) > 0 {
 		selectedTmpl = templates[0].Name
 	}
 
+	view := invoiceRowView(*rec)
 	data := PreviewData{
-		Title:        fmt.Sprintf("Invoice %s", invoiceRow.Invoice.Meta.InvoiceNumber),
+		Title:        fmt.Sprintf("Invoice %s", rec.Invoice.Meta.InvoiceNumber),
 		RowNumber:    rowNum,
-		Invoice:      invoiceView,
+		Invoice:      &view,
 		Templates:    templates,
 		SelectedTmpl: selectedTmpl,
+		Writable:     h.repo.Writable(),
 	}
-
 	h.render(w, "preview.html", data)
 }
 
-// RenderInvoice is an HTMX handler that renders the invoice with the selected template
+// RenderInvoice is an HTMX handler that renders the invoice with the selected template.
 func (h *WebHandler) RenderInvoice(w http.ResponseWriter, r *http.Request) {
-	rowStr := chi.URLParam(r, "row")
-	rowNum, err := strconv.Atoi(rowStr)
+	rowNum, err := strconv.Atoi(chi.URLParam(r, "row"))
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, `<div class="error">Invalid row number</div>`)
@@ -339,26 +332,20 @@ func (h *WebHandler) RenderInvoice(w http.ResponseWriter, r *http.Request) {
 		templateName = "default"
 	}
 
-	ctx := r.Context()
-
-	// Fetch the invoice
-	invoiceRow, err := h.sheetsSource.FetchInvoice(ctx, rowNum)
+	rec, err := h.recordByRow(r, rowNum)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `<div class="error">Failed to fetch invoice: %v</div>`, err)
 		return
 	}
 
-	// Render to temp HTML file
 	tempPath := filepath.Join(h.tempDir, fmt.Sprintf("preview-%d.html", rowNum))
-	err = h.renderer.Render(invoiceRow.RawJSON, templateName, tempPath, "html")
-	if err != nil {
+	if err := h.renderer.Render(rec.RawJSON, templateName, tempPath, "html"); err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `<div class="error">Render failed: %v</div>`, err)
 		return
 	}
 
-	// Read rendered HTML
 	htmlBytes, err := os.ReadFile(tempPath)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -366,16 +353,14 @@ func (h *WebHandler) RenderInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return the rendered HTML in an iframe container
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<iframe srcdoc="%s" class="preview-frame"></iframe>`,
 		template.HTMLEscapeString(string(htmlBytes)))
 }
 
-// DownloadPDF generates and serves a PDF download
+// DownloadPDF generates and serves a PDF download.
 func (h *WebHandler) DownloadPDF(w http.ResponseWriter, r *http.Request) {
-	rowStr := chi.URLParam(r, "row")
-	rowNum, err := strconv.Atoi(rowStr)
+	rowNum, err := strconv.Atoi(chi.URLParam(r, "row"))
 	if err != nil {
 		http.Error(w, "Invalid row number", http.StatusBadRequest)
 		return
@@ -386,47 +371,52 @@ func (h *WebHandler) DownloadPDF(w http.ResponseWriter, r *http.Request) {
 		templateName = "default"
 	}
 
-	ctx := r.Context()
-
-	// Fetch the invoice
-	invoiceRow, err := h.sheetsSource.FetchInvoice(ctx, rowNum)
+	rec, err := h.recordByRow(r, rowNum)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to fetch invoice: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Generate PDF to temp file
-	filename := fmt.Sprintf("invoice_%s.pdf", invoiceRow.Invoice.Meta.InvoiceNumber)
+	filename := fmt.Sprintf("invoice_%s.pdf", rec.Invoice.Meta.InvoiceNumber)
 	pdfPath := filepath.Join(h.tempDir, filename)
-	err = h.renderer.Render(invoiceRow.RawJSON, templateName, pdfPath, "pdf")
-	if err != nil {
+	if err := h.renderer.Render(rec.RawJSON, templateName, pdfPath, "pdf"); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to render PDF: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Serve file download
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	w.Header().Set("Content-Type", "application/pdf")
 	http.ServeFile(w, r, pdfPath)
 }
 
-// ProvisionData for the provision page
+// ProvisionData for the provision page.
 type ProvisionData struct {
 	Title        string
 	Headers      []HeaderMapping
 	WriteEnabled bool
 	Success      bool
 	Error        string
+	Unavailable  bool // true when the sheets backend is not active
 }
 
-// HeaderMapping represents a column header mapping
+// HeaderMapping represents a column header mapping.
 type HeaderMapping struct {
 	Column string
 	Name   string
 }
 
-// ProvisionPage displays the provision page
+// ProvisionPage displays the provision page.
 func (h *WebHandler) ProvisionPage(w http.ResponseWriter, r *http.Request) {
+	if h.sheetsSource == nil {
+		data := ProvisionData{
+			Title:       "Provision Headers",
+			Unavailable: true,
+			Error:       "Provisioning is only available when using the Google Sheets backend.",
+		}
+		h.render(w, "provision.html", data)
+		return
+	}
+
 	headers := h.sheetsSource.GetHeaderMapping()
 
 	var mappings []HeaderMapping
@@ -440,23 +430,26 @@ func (h *WebHandler) ProvisionPage(w http.ResponseWriter, r *http.Request) {
 	data := ProvisionData{
 		Title:        "Provision Headers",
 		Headers:      mappings,
-		WriteEnabled: h.writeEnabled,
+		WriteEnabled: h.repo.Writable(),
 	}
-
 	h.render(w, "provision.html", data)
 }
 
-// ProvisionHeaders handles the provision action
+// ProvisionHeaders handles the provision action.
 func (h *WebHandler) ProvisionHeaders(w http.ResponseWriter, r *http.Request) {
-	if !h.writeEnabled {
+	if h.sheetsSource == nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, `<div class="error">Provisioning is only available when using the Google Sheets backend.</div>`)
+		return
+	}
+
+	if !h.repo.Writable() {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, `<div class="error">Write operations not enabled. Start server with --write flag or use CLI: invgen provision</div>`)
 		return
 	}
 
-	ctx := r.Context()
-
-	if err := h.sheetsSource.ProvisionHeaders(ctx); err != nil {
+	if err := h.sheetsSource.ProvisionHeaders(r.Context()); err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `<div class="error">Failed to provision headers: %v</div>`, err)
 		return
